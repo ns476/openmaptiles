@@ -5,6 +5,7 @@
 
 -- etldoc: osm_transportation_name_network ->  osm_transportation_name_linestring
 -- etldoc: osm_shipway_linestring ->  osm_transportation_name_linestring
+-- etldoc: osm_aerialway_linestring ->  osm_transportation_name_linestring
 CREATE TABLE IF NOT EXISTS osm_transportation_name_linestring AS
 SELECT (ST_Dump(geometry)).geom AS geometry,
        name,
@@ -73,6 +74,33 @@ FROM (
                 min(z_order) AS z_order,
                 NULL::int AS route_rank
          FROM osm_shipway_linestring
+         WHERE name <> ''
+         GROUP BY name, name_en, name_de, tags, subclass, "level", layer
+         UNION ALL
+
+         SELECT ST_LineMerge(ST_Collect(geometry)) AS geometry,
+                CASE WHEN length(name) > 15 THEN osml10n_street_abbrev_all(name) ELSE NULLIF(name, '') END AS "name",
+                CASE WHEN length(name_en) > 15 THEN osml10n_street_abbrev_en(name_en) ELSE NULLIF(name_en, '') END AS "name_en",
+                CASE WHEN length(name_de) > 15 THEN osml10n_street_abbrev_de(name_de) ELSE NULLIF(name_de, '') END AS "name_de",
+                slice_language_tags(tags) || hstore(ARRAY ['name', name, 'name:en', name_en, 'name:de', name_de]) AS tags,
+                NULL AS ref,
+                'aerialway' AS highway,
+                aerialway AS subclass,
+                NULL AS brunnel,
+                NULL AS sac_scale,
+                NULL::int AS level,
+                layer,
+                NULL AS indoor,
+                NULL AS network_type,
+                NULL AS route_1,
+                NULL AS route_2,
+                NULL AS route_3,
+                NULL AS route_4,
+                NULL AS route_5,
+                NULL AS route_6,
+                min(z_order) AS z_order,
+                NULL::int AS route_rank
+         FROM osm_aerialway_linestring
          WHERE name <> ''
          GROUP BY name, name_en, name_de, tags, subclass, "level", layer
      ) AS highway_union
